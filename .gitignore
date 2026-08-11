@@ -216,3 +216,13 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Project-specific folders
+Results/
+Figures/
+
+# PyCharm
+.idea/
+
+# Additional virtual environment
+.venv311/
