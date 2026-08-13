@@ -39,12 +39,20 @@ DEFAULT_PROBLEMS = [
 ]
 
 DEFAULT_OPTIMIZERS = [
-    "PSO",
     "DE",
+    "PSO",
+    "GA",
+    "SADE",
     "JADE",
     "SHADE",
     "GWO",
+    "WOA",
     "HHO",
+    "BRO",
+    "RUN",
+    "BBOA",
+    "FOX",
+    "RIME",
 ]
 
 CHART_PALETTE = {
@@ -273,7 +281,18 @@ def build_optimizer(
 ):
     optimizer_key = normalize_optimizer_name(name)
 
-    if optimizer_key == "dsade":
+    if optimizer_key in ("dmo", "dmoa", "originaldmoa"):
+        optimizer_class = SafeOriginalDMOA
+        optimizer_kwargs = {
+            "epoch": args.epochs,
+            "pop_size": args.pop_size,
+        }
+        return optimizer_class(**optimizer_kwargs)
+
+    resolved_name = resolve_optimizer_name(name)
+    optimizer_key = normalize_optimizer_name(resolved_name)
+
+    if optimizer_key in ("dsade", "dsadeawad"):
         optimizer_class = DSADE
         optimizer_kwargs = custom_optimizer_kwargs(args)
 
@@ -288,15 +307,7 @@ def build_optimizer(
             "pop_size": args.pop_size,
         }
 
-    elif optimizer_key in ("dmo", "dmoa", "originaldmoa"):
-        optimizer_class = SafeOriginalDMOA
-        optimizer_kwargs = {
-            "epoch": args.epochs,
-            "pop_size": args.pop_size,
-        }
-
     else:
-        resolved_name = resolve_optimizer_name(name)
         optimizer_class = get_optimizer_by_class(resolved_name)
         optimizer_kwargs = {
             "epoch": args.epochs,
