@@ -37,13 +37,19 @@ def resolve_optimizer_name(name: str) -> str:
     if custom_name is not None:
         return custom_name
 
+    available_names = _available_optimizer_names()
+
+    if raw_name.casefold() == "dmoa":
+        dev_dmoa = available_names.get("devdmoa")
+        if dev_dmoa is not None:
+            return dev_dmoa
+
     candidates = [
         raw_name,
         f"Original{raw_name}",
         f"Base{raw_name}",
         f"Dev{raw_name}",
     ]
-    available_names = _available_optimizer_names()
     for candidate in candidates:
         resolved_name = available_names.get(candidate.casefold())
         if resolved_name is not None:

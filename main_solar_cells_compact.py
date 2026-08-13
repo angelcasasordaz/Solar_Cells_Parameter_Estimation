@@ -12,7 +12,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from mealpy import get_optimizer_by_class
-from mealpy.swarm_based.DMOA import OriginalDMOA
 
 from algorithm_acronym_list import resolve_optimizer_name
 from dbo_optimizer import DBOOptimizer
@@ -54,127 +53,6 @@ DEFAULT_OPTIMIZERS = [
     "FOX",
     "RIME",
 ]
-
-CHART_PALETTE = {
-    "DSADE": "#3266ad",
-    "DSADE_AWAD": "#d1495b",
-    "MaCRO-DE": "#3266ad",
-    "DBO": "#00a6a6",
-    "OriginalGWO": "#e06c00",
-    "OriginalWOA": "#2a9d5c",
-    "OriginalCA": "#c44569",
-    "OriginalPSO": "#9b59b6",
-    "OriginalDE": "#6a4c93",
-    "JADE": "#2d6a4f",
-    "SADE": "#f4a261",
-    "OriginalSHADE": "#264653",
-    "OriginalFOX": "#1b9aaa",
-    "OriginalRIME": "#e76f51",
-    "OriginalBRO": "#577590",
-    "OriginalDMOA": "#90be6d",
-    "OriginalMGO": "#f9844a",
-    "OriginalHHO": "#4d4d4d",
-    "OriginalGOA": "#8a5a44",
-    "BRO": "#577590",
-    "DE": "#6a4c93",
-    "DMO": "#90be6d",
-    "GWO": "#e06c00",
-    "HHO": "#4d4d4d",
-    "MFO": "#8a5a44",
-    "MGO": "#f9844a",
-    "PSO": "#9b59b6",
-    "SHADE": "#264653",
-    "WOA": "#2a9d5c",
-}
-
-class SafeOriginalDMOA(OriginalDMOA):
-    """Original DMOA with the zero-division in MEALPY 3.0.2 removed."""
-
-    def evolve(self, epoch):
-        cf = (1.0 - epoch / self.epoch) ** (2.0 * epoch / self.epoch)
-        fit_list = np.array([agent.target.fitness for agent in self.pop], dtype=float)
-        mean_cost = np.mean(fit_list)
-
-        if np.isfinite(mean_cost) and abs(mean_cost) > self.EPSILON:
-            fi = np.exp(-fit_list / mean_cost)
-        else:
-            fi = np.ones(self.pop_size, dtype=float)
-
-        for idx in range(self.pop_size):
-            alpha = self.get_index_roulette_wheel_selection(fi)
-            k = self.generator.choice(list(set(range(self.pop_size)) - {idx, alpha}))
-            phi = (self.peep / 2.0) * self.generator.uniform(
-                -1.0,
-                1.0,
-                self.problem.n_dims,
-            )
-            new_pos = self.pop[alpha].solution + phi * (
-                self.pop[alpha].solution - self.pop[k].solution
-            )
-            new_pos = self.correct_solution(new_pos)
-            agent = self.generate_agent(new_pos)
-
-            if self.compare_target(agent.target, self.pop[idx].target, self.problem.minmax):
-                self.pop[idx] = agent
-            else:
-                self.C[idx] += 1
-
-        sm = np.zeros(self.pop_size, dtype=float)
-
-        for idx in range(self.pop_size):
-            k = self.generator.choice(list(set(range(self.pop_size)) - {idx}))
-            phi = (self.peep / 2.0) * self.generator.uniform(
-                -1.0,
-                1.0,
-                self.problem.n_dims,
-            )
-            new_pos = self.pop[idx].solution + phi * (
-                self.pop[idx].solution - self.pop[k].solution
-            )
-            new_pos = self.correct_solution(new_pos)
-            agent = self.generate_agent(new_pos)
-
-            denominator = max(
-                abs(float(agent.target.fitness)),
-                abs(float(self.pop[idx].target.fitness)),
-                self.EPSILON,
-            )
-            sm[idx] = (
-                float(agent.target.fitness) - float(self.pop[idx].target.fitness)
-            ) / denominator
-
-            if self.compare_target(agent.target, self.pop[idx].target, self.problem.minmax):
-                self.pop[idx] = agent
-            else:
-                self.C[idx] += 1
-
-        for idx in range(self.n_baby_sitter):
-            if self.C[idx] >= self.L:
-                self.pop[idx] = self.generate_agent()
-                self.C[idx] = 0
-
-        new_tau = np.mean(sm)
-
-        for idx in range(self.pop_size):
-            m_value = np.full(self.problem.n_dims, sm[idx], dtype=float)
-            phi = (self.peep / 2.0) * self.generator.uniform(
-                -1.0,
-                1.0,
-                self.problem.n_dims,
-            )
-
-            if new_tau > self.tau:
-                new_pos = self.pop[idx].solution - cf * phi * self.generator.random() * (
-                    self.pop[idx].solution - m_value
-                )
-            else:
-                new_pos = self.pop[idx].solution + cf * phi * self.generator.random() * (
-                    self.pop[idx].solution - m_value
-                )
-
-            self.tau = new_tau
-            new_pos = self.correct_solution(new_pos)
-            self.pop[idx] = self.generate_agent(new_pos)
 
 
 @dataclass
@@ -279,16 +157,6 @@ def build_optimizer(
     name: str,
     args: argparse.Namespace,
 ):
-    optimizer_key = normalize_optimizer_name(name)
-
-    if optimizer_key in ("dmo", "dmoa", "originaldmoa"):
-        optimizer_class = SafeOriginalDMOA
-        optimizer_kwargs = {
-            "epoch": args.epochs,
-            "pop_size": args.pop_size,
-        }
-        return optimizer_class(**optimizer_kwargs)
-
     resolved_name = resolve_optimizer_name(name)
     optimizer_key = normalize_optimizer_name(resolved_name)
 
@@ -702,11 +570,6 @@ def plot_convergence(
         else:
             plot_curve = curve
 
-        color = CHART_PALETTE.get(
-            optimizer_name,
-            None,
-        )
-
         if optimizer_name == "MaCRO-DE":
             ax.plot(
                 plot_curve,
@@ -726,7 +589,6 @@ def plot_convergence(
             label=display_optimizer_name(
                 optimizer_name
             ),
-            color=color,
             solid_capstyle="round",
         )
 
