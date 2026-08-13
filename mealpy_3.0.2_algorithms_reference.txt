@@ -1,0 +1,285 @@
+MEALPY 3.0.2 - ALGORITHMS AND VARIANTS REFERENCE
+=====================================================
+
+PURPOSE
+This file is ONLY a visual reference for choosing names in DEFAULT_OPTIMIZERS.
+It does not contain algorithm implementations.
+
+FORMAT
+  [YEAR]  NAME_TO_USE  --->  ACTUAL_MEALPY_CLASS  |  Name / family
+
+EXAMPLES
+  [1995] PSO        ---> OriginalPSO
+  [2019] PPSO       ---> PPSO
+  [2014] GWO        ---> OriginalGWO
+  [2019] RW_GWO     ---> RW_GWO
+  [1997] DE         ---> OriginalDE
+  [2009] JADE       ---> JADE
+  [2013] SHADE      ---> OriginalSHADE
+  [2014] L_SHADE    ---> L_SHADE
+
+RULE FOR main_best.py
+- For the original algorithm, use the acronym/family name: PSO, GWO, WOA, DE, HHO, etc.
+- For a variant, use the exact variant name: PPSO, RW_GWO, JADE, L_SHADE, etc.
+- The resolver should first try the name exactly as written; if it does not exist, try Original+name, Base+name, and Dev+name.
+- Project-specific optimizers (MaCRO-DE, DSADE, DSADE_AWAD, DBO) are handled separately.
+
+SOURCE NOTE
+- List based on the official MEALPY v3.0.2 README/source code.
+- The official PyPI 3.0.2 page reports 215 total algorithms; the v3.0.2 README contains 211 unique constructors explicitly shown in its examples.
+- When the historical table and examples differ, this reference prioritizes the class name used by the v3.0.2 examples/source code.
+
+==== EVOLUTIONARY ====
+
+[2013] SHADE              ---> OriginalSHADE          | Success-History Adaptation Differential Evolution (SHADE)
+[1997] DE                 ---> OriginalDE             | Differential Evolution (DE)
+[2006] SAP_DE             ---> SAP_DE                 | Differential Evolution (DE)
+[1992] GA                 ---> BaseGA                 | Genetic Algorithm (GA)
+[   ?] SingleGA           ---> SingleGA               | Genetic Algorithm (GA)
+[   ?] MultiGA            ---> MultiGA                | Genetic Algorithm (GA)
+[   ?] EliteSingleGA      ---> EliteSingleGA          | Genetic Algorithm (GA)
+[   ?] EliteMultiGA       ---> EliteMultiGA           | Genetic Algorithm (GA)
+[2014] CRO                ---> OriginalCRO            | Coral Reefs Optimization (CRO)
+[2019] OCRO               ---> OCRO                   | Coral Reefs Optimization (CRO)
+[2009] JADE               ---> JADE                   | Differential Evolution (DE)
+[2005] SADE               ---> SADE                   | Differential Evolution (DE)
+[1964] EP                 ---> OriginalEP             | Evolutionary Programming (EP)
+[   ?] LevyEP             ---> LevyEP                 | Evolutionary Programming (EP)
+[1971] ES                 ---> OriginalES             | Evolution Strategies (ES)
+[   ?] LevyES             ---> LevyES                 | Evolution Strategies (ES)
+[2003] CMA_ES             ---> CMA_ES                 | Evolution Strategies (ES)
+[2023] Simple_CMA_ES      ---> Simple_CMA_ES          | Evolution Strategies (ES)
+[2014] FPA                ---> OriginalFPA            | Flower Pollination Algorithm (FPA)
+[1989] MA                 ---> OriginalMA             | Memetic Algorithm (MA)
+[2014] L_SHADE            ---> L_SHADE                | Success-History Adaptation Differential Evolution (SHADE)
+
+==== SWARM ====
+
+[2016] WOA                ---> OriginalWOA            | Whale Optimization Algorithm (WOA)
+[1995] PSO                ---> OriginalPSO            | Particle Swarm Optimization (PSO)
+[1995] LDW_PSO            ---> LDW_PSO                | Particle Swarm Optimization (PSO)
+[1995] AIW_PSO            ---> AIW_PSO                | Particle Swarm Optimization (PSO)
+[1995] P_PSO              ---> P_PSO                  | Particle Swarm Optimization (PSO)
+[2017] HPSO_TVAC          ---> HPSO_TVAC              | Particle Swarm Optimization (PSO)
+[2015] C_PSO              ---> C_PSO                  | Particle Swarm Optimization (PSO)
+[2006] CL_PSO             ---> CL_PSO                 | Particle Swarm Optimization (PSO)
+[2007] ABC                ---> OriginalABC            | Artificial Bee Colony (ABC)
+[2008] ACOR               ---> OriginalACOR           | Ant Colony Optimization (ACOR)
+[2021] AGTO               ---> OriginalAGTO           | Artificial Gorilla Troops Optimization (AGTO)
+[2023] MGTO               ---> MGTO                   | Artificial Gorilla Troops Optimization (AGTO)
+[2015] ALO                ---> OriginalALO            | Ant Lion Optimizer (ALO)
+[2015] DevALO             ---> DevALO                 | Ant Lion Optimizer (ALO)
+[2021] AO                 ---> OriginalAO             | Aquila Optimizer (AO)
+[2022] ARO                ---> OriginalARO            | Artificial Rabbits Optimization (ARO)
+[2022] LARO               ---> LARO                   | Artificial Rabbits Optimization (ARO)
+[2022] IARO               ---> IARO                   | Artificial Rabbits Optimization (ARO)
+[2022] AVOA               ---> OriginalAVOA           | African Vultures Optimization Algorithm (AVOA)
+[2010] BA                 ---> OriginalBA             | Bat Algorithm (BA)
+[2010] AdaptiveBA         ---> AdaptiveBA             | Bat Algorithm (BA)
+[2010] DevBA              ---> DevBA                  | Bat Algorithm (BA)
+[2005] BeesA              ---> OriginalBeesA          | Bees Algorithm (BeesA)
+[2006] CleverBookBeesA    ---> CleverBookBeesA        | Bees Algorithm (BeesA)
+[2015] ProbBeesA          ---> ProbBeesA              | Bees Algorithm (BeesA)
+[2020] BES                ---> OriginalBES            | Bald Eagle Search (BES)
+[2002] BFO                ---> OriginalBFO            | Bacterial Foraging Optimization (BFO)
+[2019] ABFO               ---> ABFO                   | Bacterial Foraging Optimization (BFO)
+[2022] ZOA                ---> OriginalZOA            | Zebra Optimization Algorithm (ZOA)
+[2019] HI_WOA             ---> HI_WOA                 | Whale Optimization Algorithm (WOA)
+[2022] WaOA               ---> OriginalWaOA           | Walrus Optimization Algorithm (WaOA)
+[2021] TSO                ---> OriginalTSO            | Tuna Swarm Optimization (TSO)
+[2022] TDO                ---> OriginalTDO            | Tasmanian Devil Optimization (TDO)
+[2022] STO                ---> OriginalSTO            | Siberian Tiger Optimization (STO)
+[2018] SSpiderO           ---> OriginalSSpiderO       | Social Spider Optimization (SSpiderO)
+[2015] SSpiderA           ---> OriginalSSpiderA       | Social Spider Algorithm (SSpiderA)
+[2017] SSO                ---> OriginalSSO            | Salp Swarm Optimization (SSO)
+[2020] SSA                ---> OriginalSSA            | Sparrow Search Algorithm (SSA)
+[2020] DevSSA             ---> DevSSA                 | Sparrow Search Algorithm (SSA)
+[2017] SRSR               ---> OriginalSRSR           | Swarm Robotics Search And Rescue (SRSR)
+[2019] SLO                ---> OriginalSLO            | Sea Lion Optimization (SLO)
+[   ?] ModifiedSLO        ---> ModifiedSLO            | Sea Lion Optimization (SLO)
+[2022] ImprovedSLO        ---> ImprovedSLO            | Sea Lion Optimization (SLO)
+[2017] SHO                ---> OriginalSHO            | Spotted Hyena Optimizer (SHO)
+[2019] SFO                ---> OriginalSFO            | Sailfish Optimizer (SFO)
+[   ?] ImprovedSFO        ---> ImprovedSFO            | Sailfish Optimizer (SFO)
+[2022] ServalOA           ---> OriginalServalOA       | Serval Optimization Algorithm (ServalOA)
+[2022] SeaHO              ---> OriginalSeaHO          | Sea-Horse Optimization (SeaHO)
+[2022] SCSO               ---> OriginalSCSO           | Sand Cat Swarm Optimization (SCSO)
+[2023] POA                ---> OriginalPOA            | Pelican Optimization Algorithm (POA)
+[2019] PFA                ---> OriginalPFA            | Pathfinder Algorithm (PFA)
+[2023] OOA                ---> OriginalOOA            | Osprey Optimization Algorithm (OOA)
+[2021] NGO                ---> OriginalNGO            | Northern Goshawk Optimization (NGO)
+[2019] NMRA               ---> OriginalNMRA           | Nake Mole*Rat Algorithm (NMRA)
+[   ?] ImprovedNMRA       ---> ImprovedNMRA           | Nake Mole*Rat Algorithm (NMRA)
+[2018] MSA                ---> OriginalMSA            | Moth Search Algorithm (MSA)
+[2020] MRFO               ---> OriginalMRFO           | Manta Ray Foraging Optimization (MRFO)
+[2020] WMQIMRFO           ---> WMQIMRFO               | Manta Ray Foraging Optimization (MRFO)
+[2020] MPA                ---> OriginalMPA            | Marine Predators Algorithm (MPA)
+[2022] MGO                ---> OriginalMGO            | Mountain Gazelle Optimizer (MGO)
+[2015] MFO                ---> OriginalMFO            | Moth Flame Optimization (MFO)
+[2016] JA                 ---> OriginalJA             | Jaya Algorithm (JA)
+[2021] LevyJA             ---> LevyJA                 | Jaya Algorithm (JA)
+[2016] DevJA              ---> DevJA                  | Jaya Algorithm (JA)
+[2019] HHO                ---> OriginalHHO            | Harris Hawks Optimization (HHO)
+[2021] HGS                ---> OriginalHGS            | Hunger Games Search (HGS)
+[2022] HBA                ---> OriginalHBA            | Honey Badger Algorithm (HBA)
+[2014] GWO                ---> OriginalGWO            | Grey Wolf Optimizer (GWO)
+[2022] GWO_WOA            ---> GWO_WOA                | Hybrid Grey Wolf * Whale Optimization Algorithm (GWO)
+[2019] RW_GWO             ---> RW_GWO                 | Grey Wolf Optimizer (GWO)
+[2022] GTO                ---> OriginalGTO            | Giant Trevally Optimization (GTO)
+[2022] Matlab101GTO       ---> Matlab101GTO           | Giant Trevally Optimization (GTO)
+[2023] Matlab102GTO       ---> Matlab102GTO           | Giant Trevally Optimization (GTO)
+[2017] GOA                ---> OriginalGOA            | Grasshopper Optimisation Algorithm (GOA)
+[2022] GJO                ---> OriginalGJO            | Golden Jackal Optimization (GJO)
+[2023] FOX                ---> OriginalFOX            | Fox Optimizer (FOX)
+[2012] FOA                ---> OriginalFOA            | Fruit-fly Optimization Algorithm (FOA)
+[2020] WhaleFOA           ---> WhaleFOA               | Fruit-fly Optimization Algorithm (FOA)
+[2012] DevFOA             ---> DevFOA                 | Fruit-fly Optimization Algorithm (FOA)
+[2022] FFO                ---> OriginalFFO            | Fennec For Optimization (FFO)
+[2009] FFA                ---> OriginalFFA            | Firefly Algorithm (FFA)
+[2010] FA                 ---> OriginalFA             | Fireworks Algorithm (FA)
+[2022] ESOA               ---> OriginalESOA           | Egret Swarm Optimization Algorithm (ESOA)
+[2015] EHO                ---> OriginalEHO            | Elephant Herding Optimization (EHO)
+[2016] DO                 ---> OriginalDO             | Dragonfly Optimization (DO)
+[2006] CSO                ---> OriginalCSO            | Cat Swarm Optimization (CSO)
+[2009] CSA                ---> OriginalCSA            | Cuckoo Search Algorithm (CSA)
+[2023] CoatiOA            ---> OriginalCoatiOA        | Coati Optimization Algorithm (CoatiOA)
+[2018] COA                ---> OriginalCOA            | Coyote Optimization Algorithm (COA)
+[2016] BSA                ---> OriginalBSA            | Bird Swarm Algorithm (BSA)
+
+==== PHYSICS ====
+
+[2021] ArchOA             ---> OriginalArchOA         | Archimedes Optimization Algorithm (ArchOA)
+[2019] ASO                ---> OriginalASO            | Atom Search Optimization (ASO)
+[2023] CDO                ---> OriginalCDO            | Chernobyl Disaster Optimization (CDO)
+[2016] EFO                ---> OriginalEFO            | Electromagnetic Field Optimization (EFO)
+[2016] DevEFO             ---> DevEFO                 | Electromagnetic Field Optimization (EFO)
+[2019] EO                 ---> OriginalEO             | Equilibrium Optimizer (EO)
+[2020] AdaptiveEO         ---> AdaptiveEO             | Equilibrium Optimizer (EO)
+[2020] ModifiedEO         ---> ModifiedEO             | Equilibrium Optimizer (EO)
+[2023] EVO                ---> OriginalEVO            | Energy Valley Optimization (EVO)
+[2023] FLA                ---> OriginalFLA            | Fick's Law Algorithm (FLA)
+[2019] HGSO               ---> OriginalHGSO           | Henry Gas Solubility Optimization (HGSO)
+[2016] MVO                ---> OriginalMVO            | Multi*Verse Optimizer (MVO)
+[2016] DevMVO             ---> DevMVO                 | Multi*Verse Optimizer (MVO)
+[2019] NRO                ---> OriginalNRO            | Nuclear Reaction Optimization (NRO)
+[2023] RIME               ---> OriginalRIME           | Physical Phenomenon of RIME-ice (RIME)
+[1983] SA                 ---> OriginalSA             | Simulated Annealling (SA)
+[   ?] GaussianSA         ---> GaussianSA             | Simulated Annealling (SA)
+[1987] SwarmSA            ---> SwarmSA                | Simulated Annealling (SA)
+[2013] WDO                ---> OriginalWDO            | Wind Driven Optimization (WDO)
+[2016] TWO                ---> OriginalTWO            | Tug of War Optimization (TWO)
+[2020] EnhancedTWO        ---> EnhancedTWO            | Tug of War Optimization (TWO)
+[   ?] OppoTWO            ---> OppoTWO                | Tug of War Optimization (TWO)
+[   ?] LevyTWO            ---> LevyTWO                | Tug of War Optimization (TWO)
+
+==== HUMAN ====
+
+[2020] BRO                ---> OriginalBRO            | Battle Royale Optimization (BRO)
+[2020] DevBRO             ---> DevBRO                 | Battle Royale Optimization (BRO)
+[2011] BSO                ---> OriginalBSO            | Brain Storm Optimization (BSO)
+[2017] ImprovedBSO        ---> ImprovedBSO            | Brain Storm Optimization (BSO)
+[1994] CA                 ---> OriginalCA             | Culture Algorithm (CA)
+[2020] CHIO               ---> OriginalCHIO           | Coronavirus Herd Immunity Optimization (CHIO)
+[2020] DevCHIO            ---> DevCHIO                | Coronavirus Herd Immunity Optimization (CHIO)
+[2020] FBIO               ---> OriginalFBIO           | Forensic*Based Investigation Optimization (FBIO)
+[2020] DevFBIO            ---> DevFBIO                | Forensic*Based Investigation Optimization (FBIO)
+[2019] GSKA               ---> OriginalGSKA           | Gaining Sharing Knowledge*based Algorithm (GSKA)
+[2019] DevGSKA            ---> DevGSKA                | Gaining Sharing Knowledge*based Algorithm (GSKA)
+[2020] HBO                ---> OriginalHBO            | Heap-based Optimization (HBO)
+[2022] HCO                ---> OriginalHCO            | Human Conception Optimization (HCO)
+[2007] ICA                ---> OriginalICA            | Imperialist Competitive Algorithm (ICA)
+[2019] LCO                ---> OriginalLCO            | Life Choice*Based Optimization (LCO)
+[   ?] ImprovedLCO        ---> ImprovedLCO            | Life Choice*Based Optimization (LCO)
+[2019] DevLCO             ---> DevLCO                 | Life Choice*Based Optimization (LCO)
+[2022] WarSO              ---> OriginalWarSO          | War Strategy Optimization (WarSO)
+[2021] TOA                ---> OriginalTOA            | Teamwork Optimization Algorithm (TOA)
+[2011] TLO                ---> OriginalTLO            | Teaching Learning*based Optimization (TLO)
+[2011] ImprovedTLO        ---> ImprovedTLO            | Teaching Learning*based Optimization (TLO)
+[2011] DevTLO             ---> DevTLO                 | Teaching Learning*based Optimization (TLO)
+[2019] SSDO               ---> OriginalSSDO           | Social Ski*Driver Optimization (SSDO)
+[2020] SPBO               ---> OriginalSPBO           | Student Psychology Based Optimization (SPBO)
+[   ?] DevSPBO            ---> DevSPBO                | Student Psychology Based Optimization (SPBO)
+[2019] SARO               ---> OriginalSARO           | Search And Rescue Optimization (SARO)
+[2019] DevSARO            ---> DevSARO                | Search And Rescue Optimization (SARO)
+[2019] QSA                ---> OriginalQSA            | Queuing Search Algorithm (QSA)
+[2019] DevQSA             ---> DevQSA                 | Queuing Search Algorithm (QSA)
+[   ?] OppoQSA            ---> OppoQSA                | Queuing Search Algorithm (QSA)
+[   ?] LevyQSA            ---> LevyQSA                | Queuing Search Algorithm (QSA)
+[2021] ImprovedQSA        ---> ImprovedQSA            | Queuing Search Algorithm (QSA)
+[2022] DMOA               ---> OriginalDMOA           | Dwarf Mongoose Optimization Algorithm (DMOA)
+[   ?] DevDMOA            ---> DevDMOA                | Dwarf Mongoose Optimization Algorithm (DMOA)
+
+==== BIO ====
+
+[2020] SMA                ---> OriginalSMA            | Slime Mould Algorithm (SMA)
+[2008] BBO                ---> OriginalBBO            | Biogeography*Based Optimization (BBO)
+[2008] DevBBO             ---> DevBBO                 | Biogeography*Based Optimization (BBO)
+[2023] BBOA               ---> OriginalBBOA           | Brown-Bear Optimization Algorithm (BBOA)
+[2018] BMO                ---> OriginalBMO            | Barnacles Mating Optimizer (BMO)
+[2018] EOA                ---> OriginalEOA            | Earthworm Optimisation Algorithm (EOA)
+[2006] IWO                ---> OriginalIWO            | Invasive Weed Optimization (IWO)
+[2017] DevSBO             ---> DevSBO                 | Satin Bowerbird Optimizer (SBO)
+[2017] SBO                ---> OriginalSBO            | Satin Bowerbird Optimizer (SBO)
+[2020] DevSMA             ---> DevSMA                 | Slime Mould Algorithm (SMA)
+[2019] SOA                ---> OriginalSOA            | Seagull Optimization Algorithm (SOA)
+[   ?] DevSOA             ---> DevSOA                 | Seagull Optimization Algorithm (SOA)
+[2014] SOS                ---> OriginalSOS            | Symbiotic Organisms Search (SOS)
+[2017] DevTPO             ---> DevTPO                 | Tree Physiology Optimization (TPO)
+[2020] TSA                ---> OriginalTSA            | Tunicate Swarm Algorithm (TSA)
+[2016] VCS                ---> OriginalVCS            | Virus Colony Search (VCS)
+[2016] DevVCS             ---> DevVCS                 | Virus Colony Search (VCS)
+[2019] WHO                ---> OriginalWHO            | Wildebeest Herd Optimization (WHO)
+
+==== SYSTEM ====
+
+[2019] AEO                ---> OriginalAEO            | Artificial Ecosystem*based Optimization (AEO)
+[2020] EnhancedAEO        ---> EnhancedAEO            | Artificial Ecosystem*based Optimization (AEO)
+[2020] ModifiedAEO        ---> ModifiedAEO            | Artificial Ecosystem*based Optimization (AEO)
+[2021] ImprovedAEO        ---> ImprovedAEO            | Artificial Ecosystem*based Optimization (AEO)
+[2022] AugmentedAEO       ---> AugmentedAEO           | Artificial Ecosystem*based Optimization (AEO)
+[2018] GCO                ---> OriginalGCO            | Germinal Center Optimization (GCO)
+[2018] DevGCO             ---> DevGCO                 | Germinal Center Optimization (GCO)
+[2012] WCA                ---> OriginalWCA            | Water Cycle Algorithm (WCA)
+
+==== MATH ====
+
+[2021] AOA                ---> OriginalAOA            | Arithmetic Optimization Algorithm (AOA)
+[1997] CEM                ---> OriginalCEM            | Cross-Entropy Method (CEM)
+[2021] CGO                ---> OriginalCGO            | Chaos Game Optimization (CGO)
+[2022] CircleSA           ---> OriginalCircleSA       | Circle Search Algorithm (CircleSA)
+[2020] GBO                ---> OriginalGBO            | Gradient-Based Optimizer (GBO)
+[1993] HC                 ---> OriginalHC             | Hill Climbing (HC)
+[   ?] SwarmHC            ---> SwarmHC                | Hill Climbing (HC)
+[2022] INFO               ---> OriginalINFO           | weIghted meaN oF vectOrs (INFO)
+[2021] PSS                ---> OriginalPSS            | Pareto-like Sequential Sampling (PSS)
+[2021] RUN                ---> OriginalRUN            | RUNge Kutta optimizer (RUN)
+[2016] SCA                ---> OriginalSCA            | Sine Cosine Algorithm (SCA)
+[2016] DevSCA             ---> DevSCA                 | Sine Cosine Algorithm (SCA)
+[2016] QleSCA             ---> QleSCA                 | Sine Cosine Algorithm (SCA)
+[2022] SHIO               ---> OriginalSHIO           | Success History Intelligent Optimization (SHIO)
+[2004] TS                 ---> OriginalTS             | Tabu Search (TS)
+
+==== MUSIC ====
+
+[2001] HS                 ---> OriginalHS             | Harmony Search (HS)
+[2001] DevHS              ---> DevHS                  | Harmony Search (HS)
+
+==== PROJECT CUSTOM OPTIMIZERS ====
+
+MaCRO-DE   ---> MaCRO-DE
+DSADE      ---> DSADE
+DSADE_AWAD ---> DSADE_AWAD
+DBO        ---> DBO
+
+SELECTION EXAMPLE
+DEFAULT_OPTIMIZERS = [
+    "MaCRO-DE",
+    "DE",
+    "JADE",
+    "SHADE",
+    "PSO",
+    "PPSO",
+    "GWO",
+    "RW_GWO",
+    "HHO",
+]

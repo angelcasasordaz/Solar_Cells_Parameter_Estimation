@@ -1,6 +1,5 @@
 import argparse
 import hashlib
-import inspect
 import json
 import logging
 import os
@@ -8,15 +7,14 @@ import pickle
 import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass
-from functools import lru_cache
 
 import matplotlib.pyplot as plt
-import mealpy
 import numpy as np
 import pandas as pd
-from mealpy import get_optimizer_by_name
+from mealpy import get_optimizer_by_class
 from mealpy.swarm_based.DMOA import OriginalDMOA
 
+from algorithm_acronym_list import resolve_optimizer_name
 from dbo_optimizer import DBOOptimizer
 from dsade_optimizer import DSADE
 from macro_de_optimizer import MaCRO_DE
@@ -31,8 +29,8 @@ from solar_objective import (
 )
 
 
-DEFAULT_EPOCHS = 200
-DEFAULT_RUNS = 20
+DEFAULT_EPOCHS = 500
+DEFAULT_RUNS = 15
 
 DEFAULT_PROBLEMS = [
     "SingleDiode",
@@ -41,19 +39,12 @@ DEFAULT_PROBLEMS = [
 ]
 
 DEFAULT_OPTIMIZERS = [
-    # "DSADE",
-    "MaCRO-DE",
-    "BRO",
-    "DBO",
+    "PSO",
     "DE",
-    "DMO",
+    "JADE",
+    "SHADE",
     "GWO",
     "HHO",
-    "MFO",
-    "MGO",
-    "PSO",
-    "SHADE",
-    "WOA",
 ]
 
 CHART_PALETTE = {
@@ -87,11 +78,6 @@ CHART_PALETTE = {
     "SHADE": "#264653",
     "WOA": "#2a9d5c",
 }
-
-MEALPY_OPTIMIZER_ALIASES = {
-    "dmo": "DMOA",
-}
-
 
 class SafeOriginalDMOA(OriginalDMOA):
     """Original DMOA with the zero-division in MEALPY 3.0.2 removed."""
@@ -310,141 +296,14 @@ def build_optimizer(
         }
 
     else:
-        optimizer_class = resolve_mealpy_optimizer(name)
+        resolved_name = resolve_optimizer_name(name)
+        optimizer_class = get_optimizer_by_class(resolved_name)
         optimizer_kwargs = {
             "epoch": args.epochs,
             "pop_size": args.pop_size,
         }
 
     return optimizer_class(**optimizer_kwargs)
-
-
-@lru_cache(maxsize=None)
-def resolve_mealpy_optimizer(name: str):
-    optimizer_key = normalize_optimizer_name(name)
-
-    resolved_name = MEALPY_OPTIMIZER_ALIASES.get(
-        optimizer_key,
-        name,
-    )
-
-    match_keys = {
-        optimizer_key,
-        normalize_optimizer_name(resolved_name),
-    }
-
-    for module_name in mealpy_module_candidates(resolved_name):
-        optimizer_class = find_mealpy_optimizer_in_module(
-            module_name,
-            match_keys,
-        )
-
-        if optimizer_class is not None:
-            return optimizer_class
-
-    for module_name, obj in inspect.getmembers(mealpy):
-        if not inspect.ismodule(obj):
-            continue
-
-        optimizer_class = find_mealpy_optimizer_in_module(
-            module_name,
-            match_keys,
-        )
-
-        if optimizer_class is not None:
-            return optimizer_class
-
-    raise ValueError(
-        f"Unknown MEALPY optimizer: {name}"
-    )
-
-
-def mealpy_module_candidates(name: str):
-    raw_name = str(name).replace("-", "_")
-
-    compact_name = "".join(
-        char
-        for char in raw_name
-        if char.isalnum() or char == "_"
-    )
-
-    parts = [
-        part
-        for part in compact_name.split("_")
-        if part
-    ]
-
-    candidates = [
-        raw_name,
-        compact_name,
-    ]
-
-    for prefix in ("Original", "Dev", "Base"):
-        if compact_name.lower().startswith(prefix.lower()):
-            candidates.append(
-                compact_name[len(prefix):]
-            )
-
-    if parts:
-        candidates.append(parts[-1])
-
-    seen = set()
-
-    for candidate in candidates:
-        if not candidate:
-            continue
-
-        normalized = candidate.upper()
-
-        if normalized in seen:
-            continue
-
-        seen.add(normalized)
-        yield normalized
-
-
-def find_mealpy_optimizer_in_module(
-    module_name: str,
-    optimizer_keys: set,
-):
-    optimizers = get_optimizer_by_name(module_name)
-
-    exact_match = None
-    original_match = None
-    prefixed_match = None
-
-    for class_name, optimizer_class in optimizers.items():
-        if class_name == "Optimizer":
-            continue
-
-        if normalize_optimizer_name(class_name) in optimizer_keys:
-            exact_match = optimizer_class
-            continue
-
-        for prefix in ("Original", "Dev", "Base"):
-            if not class_name.startswith(prefix):
-                continue
-
-            stripped_key = normalize_optimizer_name(
-                class_name[len(prefix):]
-            )
-
-            if stripped_key not in optimizer_keys:
-                continue
-
-            if prefix == "Original":
-                original_match = optimizer_class
-
-            elif prefixed_match is None:
-                prefixed_match = optimizer_class
-
-    if exact_match is not None:
-        return exact_match
-
-    if original_match is not None:
-        return original_match
-
-    return prefixed_match
 
 
 def build_cache_signature(args: argparse.Namespace) -> str:
