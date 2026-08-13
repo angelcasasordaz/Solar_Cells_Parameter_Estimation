@@ -40,7 +40,7 @@ DEFAULT_PROBLEMS = [
 DEFAULT_OPTIMIZERS = [
     "DE",
     "PSO",
-    "GA",
+    # "GA",
     "SADE",
     "JADE",
     "SHADE",
@@ -65,7 +65,7 @@ class Paths:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Solar Cells + MEALPY Benchmark Framework")
-    parser.add_argument("--exp-id", type=int, default=4, help="Numeric experiment identifier")
+    parser.add_argument("--exp-id", type=int, default=6, help="Numeric experiment identifier")
     parser.add_argument("--output-root", default=".", help="Root directory for Figures/Results")
     parser.add_argument("--reuse-cache", action="store_true", help="Reuse cache if available")
     parser.add_argument("--problems", nargs="+", default=list(DEFAULT_PROBLEMS), choices=list(AVAILABLE_SOLAR_PROBLEMS.keys()), help="Solar-cell models to execute")
