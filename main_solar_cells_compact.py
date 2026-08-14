@@ -40,7 +40,7 @@ DEFAULT_PROBLEMS = [
 DEFAULT_OPTIMIZERS = [
     "DE",
     "PSO",
-    # "GA",
+    "GA",
     "SADE",
     "JADE",
     "SHADE",
@@ -65,7 +65,7 @@ class Paths:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Solar Cells + MEALPY Benchmark Framework")
-    parser.add_argument("--exp-id", type=int, default=6, help="Numeric experiment identifier")
+    parser.add_argument("--exp-id", type=int, default=8, help="Numeric experiment identifier")
     parser.add_argument("--output-root", default=".", help="Root directory for Figures/Results")
     parser.add_argument("--reuse-cache", action="store_true", help="Reuse cache if available")
     parser.add_argument("--problems", nargs="+", default=list(DEFAULT_PROBLEMS), choices=list(AVAILABLE_SOLAR_PROBLEMS.keys()), help="Solar-cell models to execute")
@@ -357,21 +357,61 @@ def print_status(message: str) -> None:
     )
 
 
-def normalize_curve_length(
+def validate_convergence_curve(
     curve,
     expected_length: int,
+    optimizer_name: str,
+    run_label,
+    stage: str,
+    require_expected_length: bool = False,
 ) -> np.ndarray:
     curve = np.asarray(curve, dtype=float).reshape(-1)
 
+    if curve.size == 0:
+        raise ValueError(
+            "Missing convergence history for "
+            f"{optimizer_name}, run {run_label}, stage {stage}"
+        )
+
+    if expected_length > 1 and curve.size == 1:
+        raise ValueError(
+            "Single-point convergence history for "
+            f"{optimizer_name}, run {run_label}, stage {stage}; "
+            f"refusing to expand one value to {expected_length} iterations"
+        )
+
+    if not np.any(np.isfinite(curve)):
+        raise ValueError(
+            "Convergence history has no finite values for "
+            f"{optimizer_name}, run {run_label}, stage {stage}"
+        )
+
+    if require_expected_length and curve.size != expected_length:
+        raise ValueError(
+            "Unexpected convergence length for "
+            f"{optimizer_name}, run {run_label}, stage {stage}: "
+            f"{curve.size} != {expected_length}"
+        )
+
+    return curve
+
+
+def normalize_curve_length(
+    curve,
+    expected_length: int,
+    optimizer_name: str,
+    run_label,
+) -> np.ndarray:
+    curve = validate_convergence_curve(
+        curve,
+        expected_length,
+        optimizer_name,
+        run_label,
+        "history",
+    )
+
     if curve.size == expected_length:
         return curve
-
-    if curve.size == 0:
-        return np.full(
-            expected_length,
-            np.nan,
-            dtype=float,
-        )
 
     if curve.size > expected_length:
         return curve[:expected_length]
@@ -423,7 +463,10 @@ def run_single(
     )
 
     start_time = time.time()
-    result = optimizer.solve(mealpy_problem)
+    result = optimizer.solve(
+        mealpy_problem,
+        seed=seed,
+    )
     runtime = time.time() - start_time
 
     best_solution = np.asarray(
@@ -439,6 +482,8 @@ def run_single(
     convergence = normalize_curve_length(
         optimizer.history.list_global_best_fit,
         args.epochs,
+        optimizer_name,
+        run_index + 1 if run_index is not None else "NA",
     )
 
     print_status(
@@ -542,9 +587,12 @@ def plot_convergence(
         )
 
     for optimizer_name, curve in plot_items:
-        curve = np.asarray(
+        curve = validate_convergence_curve(
             curve,
-            dtype=float,
+            len(curve),
+            optimizer_name,
+            "Mean",
+            "before_plot",
         )
 
         if yscale == "exp":
@@ -829,6 +877,114 @@ def write_excel_with_parameter_formats(
                 row[0].number_format = "0.000000E+00"
 
 
+def convergence_filename(problem_name: str) -> str:
+    problem_filenames = {
+        "SingleDiode": "convergence_values_single_diode.xlsx",
+        "DoubleDiode": "convergence_values_double_diode.xlsx",
+        "TripleDiode": "convergence_values_triple_diode.xlsx",
+    }
+
+    return problem_filenames.get(
+        problem_name,
+        f"convergence_values_{safe_path_component(problem_name).lower()}.xlsx",
+    )
+
+
+def unique_extra_excel_path(path: str) -> str:
+    if not os.path.exists(path):
+        return path
+
+    base_path, extension = os.path.splitext(path)
+    suffix = 1
+
+    while True:
+        candidate_path = f"{base_path}_{suffix:03d}{extension}"
+
+        if not os.path.exists(candidate_path):
+            return candidate_path
+
+        suffix += 1
+
+
+def excel_sheet_name(name: str, used_names: set) -> str:
+    invalid_characters = set(r"[]:*?/\\")
+    clean_name = "".join(
+        "_" if char in invalid_characters else char
+        for char in str(name)
+    ).strip()
+    clean_name = clean_name or "Optimizer"
+    clean_name = clean_name[:31]
+
+    sheet_name = clean_name
+    suffix = 1
+
+    while sheet_name in used_names:
+        suffix_text = f"_{suffix}"
+        sheet_name = f"{clean_name[:31 - len(suffix_text)]}{suffix_text}"
+        suffix += 1
+
+    used_names.add(sheet_name)
+
+    return sheet_name
+
+
+def export_convergence_values(
+    results_struct: dict,
+    paths: Paths,
+) -> list:
+    convergence_paths = []
+
+    for problem_name, optimizer_data in results_struct.items():
+        if not optimizer_data:
+            continue
+
+        convergence_path = os.path.join(
+            paths.res_dir,
+            convergence_filename(problem_name),
+        )
+        convergence_path = unique_extra_excel_path(
+            convergence_path
+        )
+
+        used_sheet_names = set()
+
+        with pd.ExcelWriter(convergence_path, engine="openpyxl") as writer:
+            for optimizer_name, data in optimizer_data.items():
+                curves_by_run = data["curves_by_run"]
+                mean_curve = np.asarray(
+                    data["curve"],
+                    dtype=float,
+                ).reshape(-1)
+
+                convergence_data = {
+                    "Iteration": np.arange(
+                        1,
+                        mean_curve.size + 1,
+                    ),
+                }
+
+                for run_number in sorted(curves_by_run):
+                    convergence_data[f"Run_{run_number}"] = np.asarray(
+                        curves_by_run[run_number],
+                        dtype=float,
+                    )
+
+                convergence_data["Mean"] = mean_curve
+
+                pd.DataFrame(convergence_data).to_excel(
+                    writer,
+                    sheet_name=excel_sheet_name(
+                        optimizer_name,
+                        used_sheet_names,
+                    ),
+                    index=False,
+                )
+
+        convergence_paths.append(convergence_path)
+
+    return convergence_paths
+
+
 def export_results(
     results_struct: dict,
     summary_path: str,
@@ -986,7 +1142,7 @@ def main() -> None:
         print("=" * 65)
 
         results_struct[problem_name] = {}
-        curves_plot = {}
+        convergence_data = {}
 
         for optimizer_index, optimizer_name in enumerate(
             args.optimizers,
@@ -1157,10 +1313,18 @@ def main() -> None:
                 mae_runs = []
                 runtime_runs = []
                 best_solutions = []
-                curves = []
+                run_curves = {}
 
                 for run, output in completed:
                     metrics = output["metrics"]
+                    curve = validate_convergence_curve(
+                        output["curve"],
+                        args.epochs,
+                        optimizer_name,
+                        run + 1,
+                        "before_mean",
+                        require_expected_length=True,
+                    )
 
                     rmse_runs.append(
                         metrics["RMSE"]
@@ -1180,9 +1344,7 @@ def main() -> None:
                     best_solutions.append(
                         output["best_solution"]
                     )
-                    curves.append(
-                        output["curve"]
-                    )
+                    run_curves[run + 1] = curve
 
                     print(
                         f"Run {run + 1:02d} | "
@@ -1192,8 +1354,16 @@ def main() -> None:
                         f"Time = {output['runtime']:.2f}s"
                     )
 
+                if not run_curves:
+                    raise ValueError(
+                        f"No convergence curves found for {optimizer_name}"
+                    )
+
                 curves_array = np.asarray(
-                    curves,
+                    [
+                        run_curves[run_number]
+                        for run_number in sorted(run_curves)
+                    ],
                     dtype=float,
                 )
 
@@ -1202,9 +1372,10 @@ def main() -> None:
                     axis=0,
                 )
 
-                curves_plot[
-                    optimizer_name
-                ] = mean_curve
+                convergence_data[optimizer_name] = {
+                    "runs": run_curves,
+                    "mean": mean_curve,
+                }
 
                 results_struct[
                     problem_name
@@ -1233,6 +1404,8 @@ def main() -> None:
                         best_solutions,
                         dtype=float,
                     ),
+                    "curves_by_run": run_curves,
+                    "curves": curves_array,
                     "curve": mean_curve,
                 }
 
@@ -1263,7 +1436,12 @@ def main() -> None:
                 print(f"Reason: {exc}")
                 continue
 
-        if curves_plot:
+        if convergence_data:
+            curves_plot = {
+                optimizer_name: data["mean"]
+                for optimizer_name, data in convergence_data.items()
+            }
+
             save_problem_convergence_plots(
                 curves_plot,
                 problem_name,
@@ -1292,12 +1470,19 @@ def main() -> None:
         runs_path,
     )
 
+    convergence_paths = export_convergence_values(
+        results_struct,
+        paths,
+    )
+
     print("\n" + "=" * 65)
     print("COMPLETED")
     print("=" * 65)
     print(f"Figures : {paths.fig_dir}")
     print(f"Summary : {summary_path}")
     print(f"Runs    : {runs_path}")
+    for convergence_path in convergence_paths:
+        print(f"Convergence values : {convergence_path}")
 
 
 if __name__ == "__main__":
