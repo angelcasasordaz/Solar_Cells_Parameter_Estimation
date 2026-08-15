@@ -30,7 +30,7 @@ from solar_objective import (
 
 DEFAULT_EPOCHS = 500
 DEFAULT_RUNS = 15
-CONVERGENCE_CACHE_VERSION = 2
+CONVERGENCE_CACHE_VERSION = 3
 
 DEFAULT_PROBLEMS = [
     "SingleDiode",
@@ -366,6 +366,23 @@ def load_run_checkpoint(
         )
         return None
 
+    try:
+        output["curve"] = validate_convergence_curve(
+            output["curve"],
+            int(expected_metadata["epochs"]),
+            expected_metadata["optimizer_name"],
+            int(expected_metadata["run"]) + 1,
+            "cache",
+            best_fitness=float(output["best_fitness"]),
+        ).copy()
+
+    except (
+        KeyError,
+        TypeError,
+        ValueError,
+    ):
+        return None
+
     return output
 
 
@@ -382,9 +399,9 @@ def validate_convergence_curve(
     optimizer_name: str,
     run_label,
     stage: str,
-    require_expected_length: bool = False,
+    best_fitness=None,
 ) -> np.ndarray:
-    curve = np.asarray(curve, dtype=float).reshape(-1)
+    curve = np.asarray(curve, dtype=float).reshape(-1).copy()
 
     if curve.size == 0:
         raise ValueError(
@@ -399,170 +416,42 @@ def validate_convergence_curve(
             f"refusing to expand one value to {expected_length} iterations"
         )
 
-    if not np.any(np.isfinite(curve)):
-        raise ValueError(
-            "Convergence history has no finite values for "
-            f"{optimizer_name}, run {run_label}, stage {stage}"
-        )
-
-    if require_expected_length and curve.size != expected_length:
+    if curve.size != expected_length:
         raise ValueError(
             "Unexpected convergence length for "
             f"{optimizer_name}, run {run_label}, stage {stage}: "
             f"{curve.size} != {expected_length}"
         )
 
+    if not np.all(np.isfinite(curve)):
+        raise ValueError(
+            "Convergence history has non-finite values for "
+            f"{optimizer_name}, run {run_label}, stage {stage}"
+        )
+
+    if best_fitness is not None:
+        if not bool(
+            np.isclose(
+                curve[-1],
+                float(best_fitness),
+                rtol=1e-9,
+                atol=1e-12,
+            )
+        ):
+            raise ValueError(
+                "Convergence final value does not match best fitness for "
+                f"{optimizer_name}, run {run_label}, stage {stage}"
+            )
+
+    if np.any(
+        np.diff(curve) > 1e-12
+    ):
+        raise ValueError(
+            "Convergence history is not best-so-far for "
+            f"{optimizer_name}, run {run_label}, stage {stage}"
+        )
+
     return curve
-
-
-def fitness_curve_from_agents(agents) -> np.ndarray:
-    return np.asarray(
-        [
-            agent.target.fitness
-            for agent in agents
-        ],
-        dtype=float,
-    )
-
-
-def best_so_far_curve(
-    curve,
-    minmax: str,
-) -> np.ndarray:
-    curve = np.asarray(curve, dtype=float).reshape(-1)
-
-    if str(minmax).lower() == "max":
-        return np.maximum.accumulate(curve)
-
-    return np.minimum.accumulate(curve)
-
-
-def curve_is_best_so_far(
-    curve,
-    minmax: str,
-) -> bool:
-    curve = np.asarray(curve, dtype=float).reshape(-1)
-
-    if curve.size < 2:
-        return True
-
-    differences = np.diff(curve)
-
-    if str(minmax).lower() == "max":
-        return bool(
-            np.all(differences >= -1e-12)
-        )
-
-    return bool(
-        np.all(differences <= 1e-12)
-    )
-
-
-def normalize_curve_length(
-    curve,
-    expected_length: int,
-    optimizer_name: str,
-    run_label,
-) -> np.ndarray:
-    curve = validate_convergence_curve(
-        curve,
-        expected_length,
-        optimizer_name,
-        run_label,
-        "history",
-    )
-
-    if curve.size == expected_length:
-        return curve
-
-    if curve.size > expected_length:
-        return curve[:expected_length]
-
-    raise ValueError(
-        "Incomplete convergence history for "
-        f"{optimizer_name}, run {run_label}: "
-        f"{curve.size} != {expected_length}"
-    )
-
-
-def extract_convergence_curve(
-    optimizer,
-    final_fitness: float,
-    expected_length: int,
-    optimizer_name: str,
-    run_label,
-) -> np.ndarray:
-    history = optimizer.history
-    minmax = getattr(
-        optimizer.problem,
-        "minmax",
-        "min",
-    )
-    candidates = []
-
-    if getattr(history, "list_global_best_fit", None):
-        candidates.append(
-            np.asarray(
-                history.list_global_best_fit,
-                dtype=float,
-            )
-        )
-
-    if getattr(history, "list_global_best", None):
-        candidates.append(
-            fitness_curve_from_agents(
-                history.list_global_best
-            )
-        )
-
-    if getattr(history, "list_current_best_fit", None):
-        candidates.append(
-            best_so_far_curve(
-                history.list_current_best_fit,
-                minmax,
-            )
-        )
-
-    if getattr(history, "list_current_best", None):
-        candidates.append(
-            best_so_far_curve(
-                fitness_curve_from_agents(
-                    history.list_current_best
-                ),
-                minmax,
-            )
-        )
-
-    for candidate in candidates:
-        try:
-            curve = normalize_curve_length(
-                candidate,
-                expected_length,
-                optimizer_name,
-                run_label,
-            )
-
-        except ValueError:
-            continue
-
-        if not curve_is_best_so_far(
-            curve,
-            minmax,
-        ):
-            continue
-
-        if np.isclose(
-            curve[-1],
-            final_fitness,
-            rtol=1e-9,
-            atol=1e-12,
-        ):
-            return curve
-
-    raise ValueError(
-        "No convergence history matches the final best fitness for "
-        f"{optimizer_name}, run {run_label}"
-    )
 
 
 def run_single(
@@ -619,12 +508,16 @@ def run_single(
         best_solution,
     )
 
-    convergence = extract_convergence_curve(
-        optimizer,
-        float(result.target.fitness),
+    convergence = validate_convergence_curve(
+        np.asarray(
+            optimizer.history.list_global_best_fit,
+            dtype=float,
+        ).copy(),
         args.epochs,
         optimizer_name,
         run_index + 1 if run_index is not None else "NA",
+        "history",
+        best_fitness=float(result.target.fitness),
     )
 
     print_status(
@@ -771,7 +664,15 @@ def plot_convergence(
             )
 
         else:
-            plot_curve = curve
+            plot_curve = np.asarray(
+                curve,
+                dtype=float,
+            )
+
+        iterations = np.arange(
+            1,
+            len(plot_curve) + 1,
+        )
 
         is_macro_de = is_macro_de_name(
             optimizer_name
@@ -779,6 +680,7 @@ def plot_convergence(
 
         if is_macro_de:
             ax.plot(
+                iterations,
                 plot_curve,
                 linewidth=4.4,
                 label="_nolegend_",
@@ -787,6 +689,7 @@ def plot_convergence(
             )
 
         ax.plot(
+            iterations,
             plot_curve,
             linewidth=(
                 3.0
@@ -1475,7 +1378,8 @@ def main() -> None:
                 mae_runs = []
                 runtime_runs = []
                 best_solutions = []
-                run_curves = {}
+                curves = []
+                curves_by_run = {}
 
                 for run, output in completed:
                     metrics = output["metrics"]
@@ -1485,7 +1389,7 @@ def main() -> None:
                         optimizer_name,
                         run + 1,
                         "before_mean",
-                        require_expected_length=True,
+                        best_fitness=float(output["best_fitness"]),
                     ).copy()
 
                     rmse_runs.append(
@@ -1506,7 +1410,13 @@ def main() -> None:
                     best_solutions.append(
                         output["best_solution"]
                     )
-                    run_curves[run + 1] = curve.copy()
+                    curves.append(
+                        np.asarray(
+                            curve,
+                            dtype=float,
+                        ).copy()
+                    )
+                    curves_by_run[run + 1] = curve.copy()
 
                     print(
                         f"Run {run + 1:02d} | "
@@ -1516,28 +1426,25 @@ def main() -> None:
                         f"Time = {output['runtime']:.2f}s"
                     )
 
-                if not run_curves:
+                if not curves:
                     raise ValueError(
                         f"No convergence curves found for {optimizer_name}"
                     )
 
-                curves_array = np.asarray(
-                    [
-                        run_curves[run_number]
-                        for run_number in sorted(run_curves)
-                    ],
-                    dtype=float,
+                curve_matrix = np.stack(
+                    curves,
+                    axis=0,
                 ).copy()
 
-                mean_curve = np.nanmean(
-                    curves_array,
+                mean_curve = np.mean(
+                    curve_matrix,
                     axis=0,
                 ).copy()
 
                 convergence_data[optimizer_name] = {
                     "runs": {
                         run_number: run_curve.copy()
-                        for run_number, run_curve in run_curves.items()
+                        for run_number, run_curve in curves_by_run.items()
                     },
                     "mean": mean_curve.copy(),
                 }
@@ -1571,9 +1478,9 @@ def main() -> None:
                     ),
                     "curves_by_run": {
                         run_number: run_curve.copy()
-                        for run_number, run_curve in run_curves.items()
+                        for run_number, run_curve in curves_by_run.items()
                     },
-                    "curves": curves_array.copy(),
+                    "curves": curve_matrix.copy(),
                     "curve": mean_curve.copy(),
                 }
 
