@@ -28,9 +28,9 @@ from solar_objective import (
 )
 
 
-DEFAULT_EPOCHS = 505
-DEFAULT_RUNS = 15
-CONVERGENCE_CACHE_VERSION = 3
+DEFAULT_EPOCHS = 10
+DEFAULT_RUNS = 2
+CONVERGENCE_CACHE_VERSION = 5
 
 DEFAULT_PROBLEMS = [
     "SingleDiode",
@@ -51,7 +51,6 @@ DEFAULT_OPTIMIZERS = [
     "BRO",
     "RUN",
     "BBOA",
-    "FOX",
     "RIME",
 ]
 
@@ -147,7 +146,7 @@ def is_macro_de_name(name: str) -> bool:
     return normalize_optimizer_name(name) == "macrode"
 
 
-CONVERGENCE_CMAP = "Set1"
+CHART_CMAP = "Set1"
 # Qualitative:
 # "tab10"
 # "tab20"
@@ -157,6 +156,78 @@ CONVERGENCE_CMAP = "Set1"
 # "Dark2"
 # "Paired"
 # "Accent"
+
+CHART_CMAP_FALLBACKS = [
+    "tab20",
+    "tab10",
+    "Set3",
+    "Paired",
+    "Set2",
+    "Dark2",
+    "Set1",
+    "Accent",
+]
+
+
+def get_chart_colors(n_colors: int) -> np.ndarray:
+    colors = []
+    seen_colors = set()
+    cmap_names = [
+        CHART_CMAP,
+        *CHART_CMAP_FALLBACKS,
+    ]
+
+    for cmap_name in cmap_names:
+        if len(colors) >= n_colors:
+            break
+
+        colormap = plt.get_cmap(cmap_name)
+        candidate_count = getattr(
+            colormap,
+            "N",
+            n_colors,
+        )
+
+        for color_index in range(candidate_count):
+            color = colormap(color_index)
+            color_key = tuple(
+                np.round(color, 12)
+            )
+
+            if color_key in seen_colors:
+                continue
+
+            colors.append(color)
+            seen_colors.add(color_key)
+
+            if len(colors) >= n_colors:
+                break
+
+    if len(colors) < n_colors:
+        colormap = plt.get_cmap(
+            "hsv",
+            n_colors * 2,
+        )
+
+        for color_index in range(n_colors * 2):
+            color = colormap(color_index)
+            color_key = tuple(
+                np.round(color, 12)
+            )
+
+            if color_key in seen_colors:
+                continue
+
+            colors.append(color)
+            seen_colors.add(color_key)
+
+            if len(colors) >= n_colors:
+                break
+
+    return np.asarray(
+        colors[:n_colors],
+        dtype=float,
+    )
 
 
 def custom_optimizer_kwargs(args: argparse.Namespace) -> dict:
@@ -200,6 +271,20 @@ def build_optimizer(
         }
 
     return optimizer_class(**optimizer_kwargs)
+
+
+def attach_real_convergence_capture(optimizer) -> list[float]:
+    captured_global_best_fit = []
+    original_track_optimize_step = optimizer.track_optimize_step
+
+    def track_optimize_step_with_capture(pop=None, epoch=None, runtime=None):
+        captured_global_best_fit.append(
+            float(optimizer.g_best.target.fitness)
+        )
+        return original_track_optimize_step(pop, epoch, runtime)
+
+    optimizer.track_optimize_step = track_optimize_step_with_capture
+    return captured_global_best_fit
 
 
 def build_cache_signature(args: argparse.Namespace) -> str:
@@ -454,6 +539,68 @@ def validate_convergence_curve(
     return curve
 
 
+def validate_run_convergence(
+    captured_curve,
+    history_curve,
+    current_best_curve,
+    expected_length: int,
+    optimizer_name: str,
+    run_label,
+    result_fitness: float,
+    metrics: dict[str, float],
+) -> tuple[np.ndarray, bool]:
+    captured = validate_convergence_curve(
+        captured_curve,
+        expected_length,
+        optimizer_name,
+        run_label,
+        "captured_global_best",
+        best_fitness=result_fitness,
+    )
+
+    if not bool(
+        np.isclose(
+            captured[-1],
+            float(metrics["RMSE"]),
+            rtol=1e-9,
+            atol=1e-12,
+        )
+    ):
+        raise ValueError(
+            "Convergence final value does not match RMSE for "
+            f"{optimizer_name}, run {run_label}"
+        )
+
+    history = np.asarray(
+        history_curve,
+        dtype=float,
+    ).reshape(-1)
+
+    history_matches_capture = bool(
+        history.size == captured.size
+        and np.all(np.isfinite(history))
+        and np.array_equal(
+            captured,
+            history,
+        )
+    )
+
+    current = np.asarray(
+        current_best_curve,
+        dtype=float,
+    ).reshape(-1)
+
+    if current.size == expected_length and np.all(np.isfinite(current)):
+        if np.any(current < captured - 1e-12):
+            raise ValueError(
+                "Current best is better than captured global best for "
+                f"{optimizer_name}, run {run_label}; "
+                "global best update is inconsistent"
+            )
+
+    return captured.copy(), history_matches_capture
+
+
 def run_single(
     problem_name: str,
     optimizer_name: str,
@@ -490,6 +637,9 @@ def run_single(
         optimizer_name,
         args,
     )
+    captured_global_best_fit = attach_real_convergence_capture(
+        optimizer
+    )
 
     start_time = time.time()
     result = optimizer.solve(
@@ -508,16 +658,32 @@ def run_single(
         best_solution,
     )
 
-    convergence = validate_convergence_curve(
-        np.asarray(
-            optimizer.history.list_global_best_fit,
-            dtype=float,
-        ).copy(),
+    objective_rmse = float(
+        mealpy_problem["obj_func"](best_solution)
+    )
+
+    if not bool(
+        np.isclose(
+            objective_rmse,
+            float(metrics["RMSE"]),
+            rtol=1e-9,
+            atol=1e-12,
+        )
+    ):
+        raise ValueError(
+            "MEALPY objective and reported RMSE differ for "
+            f"{optimizer_name}, {run_label}"
+        )
+
+    convergence, history_matches_capture = validate_run_convergence(
+        captured_global_best_fit,
+        optimizer.history.list_global_best_fit,
+        optimizer.history.list_current_best_fit,
         args.epochs,
         optimizer_name,
         run_index + 1 if run_index is not None else "NA",
-        "history",
-        best_fitness=float(result.target.fitness),
+        float(result.target.fitness),
+        metrics,
     )
 
     print_status(
@@ -536,6 +702,7 @@ def run_single(
         "runtime": float(runtime),
         "curve": convergence.copy(),
         "metrics": metrics,
+        "history_matches_capture": history_matches_capture,
     }
 
 
@@ -623,13 +790,7 @@ def plot_convergence(
         plot_items.append(macro_item)
 
     n_algorithms = len(plot_items)
-    colormap = plt.get_cmap(
-        CONVERGENCE_CMAP,
-        max(n_algorithms, 1),
-    )
-    colors = colormap(
-        np.arange(n_algorithms)
-    )
+    colors = get_chart_colors(n_algorithms)
 
     for (optimizer_name, curve), color in zip(
         plot_items,
@@ -997,10 +1158,40 @@ def export_convergence_values(
         with pd.ExcelWriter(convergence_path, engine="openpyxl") as writer:
             for optimizer_name, data in optimizer_data.items():
                 curves_by_run = data["curves_by_run"]
-                mean_curve = np.asarray(
+                ordered_run_numbers = sorted(curves_by_run)
+                run_curves = [
+                    validate_convergence_curve(
+                        curves_by_run[run_number],
+                        len(data["curve"]),
+                        optimizer_name,
+                        run_number,
+                        "excel",
+                    ).copy()
+                    for run_number in ordered_run_numbers
+                ]
+                curve_matrix = np.stack(
+                    run_curves,
+                    axis=0,
+                )
+                mean_curve = np.mean(
+                    curve_matrix,
+                    axis=0,
+                )
+                stored_mean_curve = np.asarray(
                     data["curve"],
                     dtype=float,
                 ).reshape(-1)
+
+                if not np.allclose(
+                    mean_curve,
+                    stored_mean_curve,
+                    rtol=1e-12,
+                    atol=1e-12,
+                ):
+                    raise ValueError(
+                        "Convergence mean mismatch for "
+                        f"{problem_name} / {optimizer_name}"
+                    )
 
                 convergence_data = {
                     "Iteration": np.arange(
@@ -1009,13 +1200,13 @@ def export_convergence_values(
                     ),
                 }
 
-                for run_number in sorted(curves_by_run):
-                    convergence_data[f"Run_{run_number}"] = np.asarray(
-                        curves_by_run[run_number],
-                        dtype=float,
-                    )
+                for run_number, run_curve in zip(
+                    ordered_run_numbers,
+                    run_curves,
+                ):
+                    convergence_data[f"Run_{run_number}"] = run_curve.copy()
 
-                convergence_data["Mean"] = mean_curve
+                convergence_data["Mean"] = mean_curve.copy()
 
                 pd.DataFrame(convergence_data).to_excel(
                     writer,
