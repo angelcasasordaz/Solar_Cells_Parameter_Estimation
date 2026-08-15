@@ -27,7 +27,6 @@ from solar_objective import (
     get_parameter_names,
 )
 
-
 DEFAULT_EPOCHS = 500
 DEFAULT_RUNS = 15
 CONVERGENCE_CACHE_VERSION = 5
