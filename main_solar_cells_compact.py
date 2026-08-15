@@ -28,7 +28,7 @@ from solar_objective import (
 )
 
 
-DEFAULT_EPOCHS = 500
+DEFAULT_EPOCHS = 505
 DEFAULT_RUNS = 15
 CONVERGENCE_CACHE_VERSION = 3
 
@@ -66,7 +66,7 @@ class Paths:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Solar Cells + MEALPY Benchmark Framework")
-    parser.add_argument("--exp-id", type=int, default=3, help="Numeric experiment identifier")
+    parser.add_argument("--exp-id", type=int, default=1, help="Numeric experiment identifier")
     parser.add_argument("--output-root", default=".", help="Root directory for Figures/Results")
     parser.add_argument("--reuse-cache", action="store_true", help="Reuse cache if available")
     parser.add_argument("--problems", nargs="+", default=list(DEFAULT_PROBLEMS), choices=list(AVAILABLE_SOLAR_PROBLEMS.keys()), help="Solar-cell models to execute")
@@ -955,22 +955,6 @@ def convergence_filename(problem_name: str) -> str:
     )
 
 
-def unique_extra_excel_path(path: str) -> str:
-    if not os.path.exists(path):
-        return path
-
-    base_path, extension = os.path.splitext(path)
-    suffix = 1
-
-    while True:
-        candidate_path = f"{base_path}_{suffix:03d}{extension}"
-
-        if not os.path.exists(candidate_path):
-            return candidate_path
-
-        suffix += 1
-
-
 def excel_sheet_name(name: str, used_names: set) -> str:
     invalid_characters = set(r"[]:*?/\\")
     clean_name = "".join(
@@ -1006,9 +990,6 @@ def export_convergence_values(
         convergence_path = os.path.join(
             paths.res_dir,
             convergence_filename(problem_name),
-        )
-        convergence_path = unique_extra_excel_path(
-            convergence_path
         )
 
         used_sheet_names = set()
